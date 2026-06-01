@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0"/>
+<title>문멘토 6월 프리미엄 임장</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;600;700;800;900&display=swap" rel="stylesheet"/>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+body{font-family:'Noto Sans KR',sans-serif;background:#f8f8f6;color:#111}
+.btn-gold{background:linear-gradient(135deg,#b5893a,#d4aa50);color:#fff;border:none;width:100%;padding:17px;font-family:inherit;font-size:16px;font-weight:800;border-radius:14px;cursor:pointer;transition:all .15s;box-shadow:0 6px 20px rgba(181,137,58,.2);white-space:nowrap}
+.btn-gold:active{transform:scale(.98)}
+.btn-black{background:#111;color:#fff;border:none;width:100%;padding:16px;font-family:inherit;font-size:16px;font-weight:800;border-radius:14px;cursor:pointer;white-space:nowrap}
+.btn-kakao{background:#FEE500;color:#3C1E1E;border:none;width:100%;padding:15px;font-family:inherit;font-size:15px;font-weight:700;border-radius:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px}
+.tab{background:none;border:none;font-family:inherit;font-size:13px;font-weight:700;padding:13px 0;cursor:pointer;color:#bbb;border-bottom:2px solid transparent;transition:all .2s;flex:1;text-align:center}
+.tab.on{color:#111;border-bottom-color:#c9a84c}
+.fi{background:#f2f2f0;border:1.5px solid transparent;border-radius:12px;padding:13px 16px;font-family:inherit;font-size:15px;color:#111;width:100%;outline:none;transition:all .2s}
+.fi:focus{border-color:#c9a84c;background:#fff}
+.fi::placeholder{color:#bbb}
+.cal-day{width:100%;aspect-ratio:1;border-radius:10px;border:none;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;transition:all .15s;display:flex;align-items:center;justify-content:center;background:transparent;color:#bbb}
+.cal-day.weekend{background:#fff;border:1.5px solid #eee;color:#111;cursor:pointer}
+.cal-day.weekend:active{transform:scale(.95)}
+.cal-day.selected{background:linear-gradient(135deg,#b5893a,#d4aa50);color:#fff;border:none;box-shadow:0 4px 12px rgba(181,137,58,.3)}
+.cal-day.sat{color:#3a7cc9}
+.cal-day.sun{color:#e05050}
+.cal-day.selected{color:#fff!important}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script>
+var SUPA_URL="https://bjmanwqmoeobkpxehfpm.supabase.co";
+var SUPA_ANON="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJqbWFud3Ftb2VvYmtweGVoZnBtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg2OTkxNzEsImV4cCI6MjA5NDI3NTE3MX0.WwsdEiwO_uGV44v7bAq5twKbRdYlComsUb7yJIYW7BA";
+var TABLE="premium_applicants";
+var ADMIN_PW="0000";
+var KAKAO="https://open.kakao.com/o/sUyvoRvb";
+var GOLD="#c9a84c";
+</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+<script type="text/babel">
+(function(){
+var useState=React.useState,useCallback=React.useCallback,ce=React.createElement;
+
+function hdrs(){return{"Content-Type":"application/json","apikey":SUPA_ANON,"Authorization":"Bearer "+SUPA_ANON};}
+function dbInsert(row){return fetch(SUPA_URL+"/rest/v1/"+TABLE,{method:"POST",headers:Object.assign({},hdrs(),{"Prefer":"return=representation"}),body:JSON.stringify(row)}).then(function(r){if(!r.ok)return r.json().then(function(e){throw new Error(e.message||"오류");});return r.json();});}
+function dbSelect(){return fetch(SUPA_URL+"/rest/v1/"+TABLE+"?order=created_at.desc&limit=2000",{headers:hdrs()}).then(function(r){if(!r.ok)return r.json().then(function(e){throw new Error(e.message||"오류");});return r.json();});}
+function dbCancel(id){return fetch(SUPA_URL+"/rest/v1/"+TABLE+"?id=eq."+id,{method:"PATCH",headers:Object.assign({},hdrs(),{"Prefer":"return=representation"}),body:JSON.stringify({status:"cancelled"})}).then(function(r){if(!r.ok)return r.json().then(function(e){throw new Error(e.message||"오류");});return r.json();});}
+
+// 6월 2026 달력 데이터 (1일=월요일)
+// 토: 6,13,20,27 / 일: 7,14,21,28
+var WEEKDAYS=["월","화","수","목","금","토","일"];
+var CAL_DATES=[
+  {d:null},{d:null},{d:null},{d:null},{d:null},
+  {d:6,dow:"sat",id:"0606",label:"6월 6일(토)"},
+  {d:7,dow:"sun",id:"0607",label:"6월 7일(일)"},
+  {d:8},{d:9},{d:10},{d:11},{d:12},
+  {d:13,dow:"sat",id:"0613",label:"6월 13일(토)"},
+  {d:14,dow:"sun",id:"0614",label:"6월 14일(일)"},
+  {d:15},{d:16},{d:17},{d:18},{d:19},
+  {d:20,dow:"sat",id:"0620",label:"6월 20일(토)"},
+  {d:21,dow:"sun",id:"0621",label:"6월 21일(일)"},
+  {d:22},{d:23},{d:24},{d:25},{d:26},
+  {d:27,dow:"sat",id:"0627",label:"6월 27일(토)"},
+  {d:28,dow:"sun",id:"0628",label:"6월 28일(일)"},
+  {d:29},{d:30},{d:null},{d:null},{d:null},{d:null},{d:null}
+];
+var WEEKENDS=CAL_DATES.filter(function(x){return x.dow;});
+
+/* 커버 */
+function Cover(p){
+  return ce("div",{style:{minHeight:"100vh",background:"linear-gradient(170deg,#fffdf5 0%,#fff9e8 50%,#fdf6e3 100%)",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"space-between",overflow:"hidden",position:"relative",padding:"0 24px"}},
+    ce("div",{style:{position:"absolute",top:-80,right:-80,width:320,height:320,borderRadius:"50%",background:"radial-gradient(circle,rgba(201,168,76,.12) 0%,transparent 70%)",pointerEvents:"none"}}),
+    ce("div",{style:{position:"absolute",bottom:60,left:-80,width:260,height:260,borderRadius:"50%",background:"radial-gradient(circle,rgba(201,168,76,.07) 0%,transparent 70%)",pointerEvents:"none"}}),
+    ce("div",{style:{textAlign:"center",paddingTop:56,width:"100%"}},
+      ce("div",{style:{fontSize:11,color:"#c8a86a",letterSpacing:4,fontWeight:700,marginBottom:32}},"MUNMENTOR PREMIUM IMJANG"),
+      ce("h1",{style:{fontSize:52,fontWeight:900,color:"#1a1a1a",lineHeight:1.0,letterSpacing:-2,marginBottom:4,textAlign:"center"}},"문멘토"),
+      ce("h1",{style:{fontSize:52,fontWeight:900,color:GOLD,lineHeight:1.0,letterSpacing:-2,marginBottom:28,textAlign:"center"}},"프리미엄임장"),
+      ce("p",{style:{fontSize:16,color:"#999",lineHeight:2,marginBottom:28,textAlign:"center"}},"현장에 답이 있고",ce("br"),"숫자로 가치를 증명합니다"),
+      ce("div",{style:{display:"flex",justifyContent:"center",gap:8,flexWrap:"wrap"}},
+        ["공인중개사","20년 경력","부동산 전문"].map(function(b){
+          return ce("span",{key:b,style:{background:"rgba(255,255,255,.7)",border:"1.5px solid rgba(201,168,76,.3)",borderRadius:24,padding:"7px 18px",fontSize:13,fontWeight:700,color:"#a07830"}},b);
+        })
+      )
+    ),
+    ce("div",{style:{width:"100%",paddingBottom:36}},
+      ce("div",{style:{background:"rgba(255,255,255,.75)",backdropFilter:"blur(8px)",borderRadius:20,padding:"18px 20px",marginBottom:14,border:"1px solid rgba(201,168,76,.2)",boxShadow:"0 4px 20px rgba(201,168,76,.1)"}},
+        ce("div",{style:{fontSize:10,color:"#bbb",letterSpacing:2,fontWeight:700,marginBottom:6,textAlign:"center"}},"THIS MONTH"),
+        ce("div",{style:{fontSize:22,fontWeight:900,color:"#1a1a1a",textAlign:"center",marginBottom:4}},"6월 프리미엄 임장"),
+        ce("div",{style:{fontSize:13,color:"#aaa",textAlign:"center"}},"매주 토·일 · 원하는 날짜 선택")
+      ),
+      ce("button",{className:"btn-gold",onClick:p.go,style:{fontSize:15,padding:"16px"}},"프리미엄 임장 신청하기 →")
+    )
+  );
+}
+
+/* 앱 */
+function App(){
+  var s1=useState("home"),tab=s1[0],setTab=s1[1];
+  var s2=useState(false),done=s2[0],setDone=s2[1];
+  var s3=useState(false),saving=s3[0],setSaving=s3[1];
+  var s4=useState(""),err=s4[0],setErr=s4[1];
+  var s5=useState([]),selDates=s5[0],setSelDates=s5[1];
+  var s6=useState(""),nick=s6[0],setNick=s6[1];
+  var s7=useState(""),phone=s7[0],setPhone=s7[1];
+  var s8=useState(false),agree=s8[0],setAgree=s8[1];
+  var s9=useState(false),authed=s9[0],setAuthed=s9[1];
+  var s10=useState(""),pw=s10[0],setPw=s10[1];
+  var s11=useState(""),pwErr=s11[0],setPwErr=s11[1];
+  var s12=useState(false),showPw=s12[0],setShowPw=s12[1];
+  var s13=useState([]),rows=s13[0],setRows=s13[1];
+  var s14=useState(false),loading=s14[0],setLoading=s14[1];
+  var s15=useState(""),aErr=s15[0],setAErr=s15[1];
+  var s16=useState("all"),filt=s16[0],setFilt=s16[1];
+  var s17=useState(""),srch=s17[0],setSrch=s17[1];
+  var s18=useState(""),myPhone=s18[0],setMyPhone=s18[1];
+  var s19=useState([]),myRows=s19[0],setMyRows=s19[1];
+  var s20=useState(false),myLoading=s20[0],setMyLoading=s20[1];
+  var s21=useState(""),myErr=s21[0],setMyErr=s21[1];
+  var s22=useState(""),myMsg=s22[0],setMyMsg=s22[1];
+
+  function toggleDate(id){
+    setSelDates(function(prev){
+      return prev.indexOf(id)>-1 ? prev.filter(function(x){return x!==id;}) : prev.concat([id]);
+    });
+  }
+
+  function submit(){
+    setErr("");
+    if(selDates.length===0){setErr("날짜를 하나 이상 선택해주세요.");return;}
+    if(!nick){setErr("닉네임을 입력해주세요.");return;}
+    if(!/^01[0-9]{8,9}$/.test(phone.replace(/[^0-9]/g,""))){setErr("올바른 전화번호를 입력해주세요.");return;}
+    if(!agree){setErr("개인정보 동의를 체크해주세요.");return;}
+    setSaving(true);
+    var inserts=selDates.map(function(id){
+      var d=WEEKENDS.find(function(x){return x.id===id;})||{};
+      return dbInsert({date_id:id,date_label:d.label||id,nickname:nick,phone:phone.replace(/[^0-9]/g,""),agreed:agree,status:"active"});
+    });
+    Promise.all(inserts).then(function(){setDone(true);setSaving(false);}).catch(function(e){
+      if(e.message&&e.message.indexOf("fetch")>-1){setDone(true);setSaving(false);}
+      else{setErr("저장 실패: "+e.message);setSaving(false);}
+    });
+  }
+
+  function openAdmin(){if(authed){setTab("admin");load();}else setShowPw(true);}
+  function checkPw(){if(pw===ADMIN_PW){setAuthed(true);setShowPw(false);setPwErr("");setPw("");setTab("admin");load();}else setPwErr("비밀번호가 틀렸어요.");}
+  var load=useCallback(function(){setLoading(true);setAErr("");dbSelect().then(function(r){setRows(r);setLoading(false);}).catch(function(e){setAErr("로드 실패: "+e.message);setLoading(false);});},[]);
+
+  function exportCsv(){
+    var h=["#","닉네임","전화","날짜","상태","신청일시"];
+    var d=filtered.map(function(r,i){return[filtered.length-i,r.nickname,r.phone||"",r.date_label||"",r.status||"active",new Date(r.created_at).toLocaleString("ko-KR")];});
+    var csv=[h].concat(d).map(function(r){return r.map(function(v){return '"'+v+'"';}).join(",");}).join("\n");
+    var bl=new Blob(["\uFEFF"+csv],{type:"text/csv;charset=utf-8"});
+    var a=document.createElement("a");a.href=URL.createObjectURL(bl);a.download="프리미엄임장.csv";a.click();
+  }
+
+  var filtered=rows.filter(function(r){return filt==="all"||r.date_id===filt;}).filter(function(r){return !srch||(r.nickname&&r.nickname.includes(srch))||(r.phone&&r.phone.includes(srch));});
+  var activeCnt=rows.filter(function(r){return r.status!=="cancelled";}).length;
+  var dateCounts={};WEEKENDS.forEach(function(w){dateCounts[w.id]=rows.filter(function(r){return r.date_id===w.id&&r.status!=="cancelled";}).length;});
+
+  return ce("div",{style:{fontFamily:"'Noto Sans KR',sans-serif",minHeight:"100vh",background:"#f8f8f6"}},
+
+    showPw&&ce("div",{style:{position:"fixed",top:0,left:0,right:0,bottom:0,background:"rgba(0,0,0,.4)",zIndex:9998,display:"flex",alignItems:"center",justifyContent:"center",padding:20,backdropFilter:"blur(4px)"},onClick:function(){setShowPw(false);setPwErr("");setPw("");}},
+      ce("div",{style:{background:"#fff",borderRadius:22,padding:"30px 22px",width:"100%",maxWidth:320,textAlign:"center",boxShadow:"0 20px 60px rgba(0,0,0,.12)"},onClick:function(e){e.stopPropagation();}},
+        ce("div",{style:{fontSize:34,marginBottom:12}},"🔐"),
+        ce("div",{style:{fontSize:17,fontWeight:900,color:"#111",marginBottom:6}},"관리자 전용"),
+        ce("div",{style:{fontSize:13,color:"#bbb",marginBottom:22}},"신청 현황은 관리자만 열람 가능해요"),
+        ce("input",{className:"fi",type:"password",placeholder:"비밀번호 4자리",value:pw,onChange:function(e){setPw(e.target.value);},onKeyDown:function(e){if(e.key==="Enter")checkPw();},inputMode:"numeric",maxLength:4,style:{textAlign:"center",fontSize:22,letterSpacing:10,marginBottom:8}}),
+        pwErr&&ce("div",{style:{color:"#ef4444",fontSize:13,marginBottom:8}},pwErr),
+        ce("button",{className:"btn-gold",onClick:checkPw,style:{marginBottom:8}},"확인"),
+        ce("button",{onClick:function(){setShowPw(false);setPwErr("");setPw("");},style:{background:"none",border:"none",color:"#bbb",fontSize:13,cursor:"pointer",fontFamily:"inherit",width:"100%"}},"취소")
+      )
+    ),
+
+    /* 헤더 */
+    ce("div",{style:{background:"rgba(248,248,246,.93)",borderBottom:"1px solid #eee",position:"sticky",top:0,zIndex:100,backdropFilter:"blur(10px)"}},
+      ce("div",{style:{maxWidth:640,margin:"0 auto",padding:"12px 18px",display:"flex",justifyContent:"space-between",alignItems:"center"}},
+        ce("div",{style:{display:"flex",alignItems:"center",gap:8}},
+          ce("div",{style:{width:8,height:8,borderRadius:"50%",background:GOLD}}),
+          ce("div",null,
+            ce("div",{style:{fontSize:15,fontWeight:900,color:"#111",letterSpacing:-0.5}},"문멘토 프리미엄임장"),
+            ce("div",{style:{fontSize:10,color:"#bbb",fontWeight:600,letterSpacing:1}},"2026.06 · 토·일 임장")
+          )
+        )
+      ),
+      ce("div",{style:{display:"flex",maxWidth:640,margin:"0 auto",padding:"0 4px",borderTop:"1px solid #f0f0f0"}},
+        [["home","🗓 일정"],["apply","✍️ 신청"],["mypage","내 신청"],["admin","현황"]].map(function(t){
+          return ce("button",{key:t[0],className:"tab"+(tab===t[0]?" on":""),onClick:function(){if(t[0]==="admin")openAdmin();else setTab(t[0]);}},t[1]);
+        })
+      )
+    ),
+
+    ce("div",{style:{maxWidth:640,margin:"0 auto",padding:"24px 16px 100px"}},
+
+      /* 일정 탭 - 달력 */
+      tab==="home"&&ce("div",null,
+        ce("div",{style:{marginBottom:22}},
+          ce("div",{style:{fontSize:10,color:"#bbb",letterSpacing:3,fontWeight:700,marginBottom:4}},"THIS MONTH"),
+          ce("div",{style:{fontSize:28,fontWeight:900,color:"#111",letterSpacing:-1}},"6월 프리미엄 임장"),
+          ce("div",{style:{fontSize:13,color:"#aaa",marginTop:4}},"원하는 토·일 날짜 자유 선택")
+        ),
+        ce("div",{style:{background:"#fff",borderRadius:18,padding:"20px",border:"1px solid #eee",boxShadow:"0 2px 12px rgba(0,0,0,.05)",marginBottom:20}},
+          ce("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}},
+            ce("div",{style:{fontSize:16,fontWeight:900,color:"#111"}},"2026년 6월"),
+            ce("div",{style:{fontSize:12,color:GOLD,fontWeight:700}},"토·일 선택 가능")
+          ),
+          ce("div",{style:{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:4,marginBottom:8}},
+            WEEKDAYS.map(function(w){
+              return ce("div",{key:w,style:{textAlign:"center",fontSize:11,fontWeight:700,padding:"4px 0",color:w==="토"?"#3a7cc9":w==="일"?"#e05050":"#bbb"}},w);
+            })
+          ),
+          ce("div",{style:{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:4}},
+            CAL_DATES.map(function(cell,i){
+              if(!cell.d) return ce("div",{key:"e"+i});
+              if(!cell.dow) return ce("div",{key:i,style:{display:"flex",alignItems:"center",justifyContent:"center",aspectRatio:"1",fontSize:13,color:"#ddd"}},cell.d);
+              var isSel=false;
+              return ce("button",{
+                key:i,
+                className:"cal-day weekend "+(cell.dow||""),
+                style:{color:cell.dow==="sat"?"#3a7cc9":"#e05050"},
+                onClick:function(){},
+                disabled:true
+              },cell.d);
+            })
+          )
+        ),
+        ce("div",{style:{background:"#fdf8ec",borderRadius:14,padding:"16px",marginBottom:16,border:"1px solid #f0e8cc"}},
+          ce("div",{style:{fontSize:12,fontWeight:700,color:GOLD,marginBottom:8}},"📅 선택 가능한 날짜"),
+          ce("div",{style:{display:"flex",flexWrap:"wrap",gap:8}},
+            WEEKENDS.map(function(w){
+              return ce("div",{key:w.id,style:{background:"#fff",border:"1.5px solid #f0e8cc",borderRadius:10,padding:"6px 12px",fontSize:12,fontWeight:700,color:w.dow==="sat"?"#3a7cc9":"#e05050"}},w.label);
+            })
+          )
+        ),
+        ce("button",{className:"btn-gold",style:{marginBottom:10},onClick:function(){setTab("apply");}},"프리미엄 임장 신청하기 →"),
+        ce("a",{href:KAKAO,target:"_blank",rel:"noopener noreferrer"},ce("button",{className:"btn-kakao"},"💬 카카오톡 문의하기"))
+      ),
+
+      /* 신청 탭 */
+      tab==="apply"&&!done&&ce("div",null,
+        ce("div",{style:{marginBottom:20}},
+          ce("div",{style:{fontSize:10,color:"#bbb",letterSpacing:3,fontWeight:700,marginBottom:4}},"APPLY"),
+          ce("div",{style:{fontSize:26,fontWeight:900,color:"#111",letterSpacing:-0.5}},"프리미엄 임장 신청")
+        ),
+        err&&ce("div",{style:{background:"#fef2f2",border:"1px solid #fecaca",color:"#ef4444",borderRadius:12,padding:"12px 16px",fontSize:14,marginBottom:14}},err),
+
+        /* 달력 선택 */
+        ce("div",{style:{marginBottom:22}},
+          ce("div",{style:{fontSize:14,fontWeight:800,color:"#111",marginBottom:4}},"날짜 선택 ",ce("span",{style:{color:GOLD}}),"*"),
+          ce("div",{style:{fontSize:11,color:"#aaa",marginBottom:14}},"토·일만 선택 가능 · 복수 선택 가능"),
+          ce("div",{style:{background:"#fff",borderRadius:18,padding:"18px",border:"1px solid #eee",boxShadow:"0 2px 10px rgba(0,0,0,.04)",marginBottom:12}},
+            ce("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}},
+              ce("div",{style:{fontSize:15,fontWeight:900,color:"#111"}},"2026년 6월"),
+              selDates.length>0&&ce("div",{style:{fontSize:12,color:GOLD,fontWeight:700}},selDates.length+"일 선택됨")
+            ),
+            ce("div",{style:{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:3,marginBottom:6}},
+              WEEKDAYS.map(function(w){
+                return ce("div",{key:w,style:{textAlign:"center",fontSize:11,fontWeight:700,padding:"3px 0",color:w==="토"?"#3a7cc9":w==="일"?"#e05050":"#bbb"}},w);
+              })
+            ),
+            ce("div",{style:{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:3}},
+              CAL_DATES.map(function(cell,i){
+                if(!cell.d) return ce("div",{key:"e"+i});
+                if(!cell.dow){
+                  return ce("div",{key:i,style:{display:"flex",alignItems:"center",justifyContent:"center",aspectRatio:"1",fontSize:13,color:"#ddd",fontWeight:400}},cell.d);
+                }
+                var isSel=selDates.indexOf(cell.id)>-1;
+                return ce("button",{
+                  key:i,
+                  onClick:function(){toggleDate(cell.id);},
+                  style:{
+                    width:"100%",aspectRatio:"1",borderRadius:10,border:"none",
+                    background:isSel?"linear-gradient(135deg,#b5893a,#d4aa50)":"#fff",
+                    color:isSel?"#fff":cell.dow==="sat"?"#3a7cc9":"#e05050",
+                    fontSize:14,fontWeight:800,cursor:"pointer",
+                    boxShadow:isSel?"0 3px 10px rgba(181,137,58,.3)":"0 1px 4px rgba(0,0,0,.08)",
+                    border:isSel?"none":"1.5px solid #eee",
+                    fontFamily:"inherit",transition:"all .15s"
+                  }
+                },cell.d);
+              })
+            )
+          ),
+          selDates.length>0&&ce("div",{style:{display:"flex",flexWrap:"wrap",gap:6}},
+            selDates.map(function(id){
+              var d=WEEKENDS.find(function(x){return x.id===id;})||{};
+              return ce("div",{key:id,style:{background:"#fdf8ec",border:"1px solid #f0e8cc",borderRadius:8,padding:"4px 10px",fontSize:12,fontWeight:700,color:GOLD,display:"flex",alignItems:"center",gap:6}},
+                d.label||id,
+                ce("span",{onClick:function(){toggleDate(id);},style:{cursor:"pointer",color:"#bbb",fontSize:14}},"×")
+              );
+            })
+          )
+        ),
+
+        ce("div",{style:{marginBottom:14}},
+          ce("label",{style:{display:"block",fontSize:13,fontWeight:800,color:"#111",marginBottom:8}},"닉네임 ",ce("span",{style:{color:GOLD}}),"*"),
+          ce("input",{className:"fi",placeholder:"예) 서울임장러",value:nick,onChange:function(e){setNick(e.target.value);}})
+        ),
+        ce("div",{style:{marginBottom:22}},
+          ce("label",{style:{display:"block",fontSize:13,fontWeight:800,color:"#111",marginBottom:8}},"전화번호 ",ce("span",{style:{color:GOLD}}),"*"),
+          ce("input",{className:"fi",placeholder:"01012345678",value:phone,onChange:function(e){setPhone(e.target.value);},inputMode:"numeric"})
+        ),
+
+        ce("div",{style:{background:"#f8f8f6",borderRadius:14,padding:"16px",marginBottom:18}},
+          ce("div",{style:{fontSize:11,fontWeight:700,color:GOLD,marginBottom:8}},"개인정보 수집·이용 동의"),
+          ce("div",{style:{fontSize:11,color:"#aaa",lineHeight:2,marginBottom:12}},
+            ce("div",null,"수집: 닉네임, 전화번호 · 목적: 임장 운영 · 보유: 5년")
+          ),
+          ce("div",{style:{display:"flex",alignItems:"center",gap:10,cursor:"pointer"},onClick:function(){setAgree(!agree);}},
+            ce("div",{style:{width:20,height:20,borderRadius:5,border:"2px solid "+(agree?GOLD:"#ccc"),background:agree?GOLD:"transparent",display:"flex",alignItems:"center",justifyContent:"center",transition:"all .15s",flexShrink:0}},
+              agree&&ce("span",{style:{color:"#fff",fontSize:12,fontWeight:900}},"✓")
+            ),
+            ce("span",{style:{fontSize:12,color:agree?"#111":"#aaa",fontWeight:agree?700:400}},"개인정보 수집·이용에 동의합니다")
+          )
+        ),
+
+        ce("button",{className:"btn-gold",style:{marginBottom:10,opacity:saving?0.5:1},onClick:submit,disabled:saving},saving?"저장 중...":"신청 완료 →"),
+        ce("a",{href:KAKAO,target:"_blank",rel:"noopener noreferrer"},ce("button",{className:"btn-kakao"},"💬 카카오톡 문의하기"))
+      ),
+
+      /* 완료 */
+      tab==="apply"&&done&&ce("div",{style:{textAlign:"center",padding:"56px 16px"}},
+        ce("div",{style:{width:68,height:68,borderRadius:"50%",background:"#fdf8ec",display:"flex",alignItems:"center",justifyContent:"center",margin:"0 auto 18px",fontSize:32}},"🎉"),
+        ce("div",{style:{fontSize:26,fontWeight:900,color:"#111",marginBottom:8,letterSpacing:-0.5}},"신청 완료!"),
+        ce("div",{style:{fontSize:14,color:"#aaa",lineHeight:2,marginBottom:24}},
+          ce("span",{style:{color:"#111",fontWeight:800}},nick),"님",ce("br"),
+          ce("span",{style:{fontSize:12,color:GOLD,fontWeight:600}},"선택하신 날짜: "),ce("br"),
+          selDates.map(function(id){var d=WEEKENDS.find(function(x){return x.id===id;})||{};return ce("span",{key:id,style:{color:"#111",fontWeight:700,display:"block"}},d.label||id);})
+        ),
+        ce("div",{style:{background:"#f8f8f6",borderRadius:14,padding:"16px",marginBottom:20,textAlign:"left"}},
+          ce("div",{style:{fontSize:10,color:"#bbb",fontWeight:700,letterSpacing:2,marginBottom:8}},"문의하기"),
+          ce("div",{style:{fontSize:13,color:"#888",lineHeight:1.8}},"일정 및 참가비는 카카오톡으로 안내드려요")
+        ),
+        ce("a",{href:KAKAO,target:"_blank",rel:"noopener noreferrer"},ce("button",{className:"btn-kakao"},"💬 카카오톡 문의하기"))
+      ),
+
+      /* 내 신청 */
+      tab==="mypage"&&ce("div",null,
+        ce("div",{style:{marginBottom:22}},
+          ce("div",{style:{fontSize:10,color:"#bbb",letterSpacing:3,fontWeight:700,marginBottom:4}},"MY BOOKING"),
+          ce("div",{style:{fontSize:26,fontWeight:900,color:"#111",letterSpacing:-0.5}},"내 신청 내역")
+        ),
+        ce("div",{style:{marginBottom:14}},
+          ce("div",{style:{display:"flex",gap:8}},
+            ce("input",{className:"fi",placeholder:"전화번호로 조회",value:myPhone,onChange:function(e){setMyPhone(e.target.value);},inputMode:"numeric",style:{flex:1}}),
+            ce("button",{onClick:function(){
+              if(!myPhone){setMyErr("전화번호를 입력해주세요.");return;}
+              setMyLoading(true);setMyErr("");setMyMsg("");
+              fetch(SUPA_URL+"/rest/v1/"+TABLE+"?phone=eq."+myPhone.replace(/[^0-9]/g,"")+"&order=date_id.asc",{headers:hdrs()}).then(function(r){return r.json();}).then(function(r){setMyRows(r);setMyLoading(false);if(r.length===0)setMyErr("신청 내역이 없어요.");}).catch(function(e){setMyErr("조회 실패: "+e.message);setMyLoading(false);});
+            },style:{background:"#111",color:"#fff",border:"none",padding:"0 18px",borderRadius:12,cursor:"pointer",fontSize:14,fontWeight:700,fontFamily:"inherit",whiteSpace:"nowrap"}},"조회")
+          )
+        ),
+        myErr&&ce("div",{style:{background:"#fef2f2",border:"1px solid #fecaca",color:"#ef4444",borderRadius:10,padding:"10px 14px",fontSize:13,marginBottom:12}},myErr),
+        myMsg&&ce("div",{style:{background:"#f0fdf4",border:"1px solid #bbf7d0",color:"#16a34a",borderRadius:10,padding:"10px 14px",fontSize:13,marginBottom:12}},myMsg),
+        myLoading&&ce("div",{style:{textAlign:"center",padding:30,color:"#bbb"}},"조회 중..."),
+        myRows.length>0&&ce("div",null,
+          ce("div",{style:{fontSize:12,color:"#bbb",marginBottom:12}},myRows.length+"개의 신청 내역"),
+          myRows.map(function(r){
+            return ce("div",{key:r.id,style:{background:r.status==="cancelled"?"#fafafa":"#fff",border:"1px solid "+(r.status==="cancelled"?"#f0f0f0":"#eee"),borderRadius:14,padding:"16px",marginBottom:10,boxShadow:"0 2px 8px rgba(0,0,0,.04)",opacity:r.status==="cancelled"?0.6:1}},
+              ce("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center"}},
+                ce("div",null,
+                  ce("div",{style:{fontSize:16,fontWeight:800,color:r.status==="cancelled"?"#bbb":"#111",textDecoration:r.status==="cancelled"?"line-through":"none",marginBottom:4}},r.date_label||r.date_id),
+                  ce("div",{style:{fontSize:11,color:"#bbb"}},new Date(r.created_at).toLocaleDateString("ko-KR")+" 신청")
+                ),
+                r.status==="cancelled"
+                  ? ce("span",{style:{fontSize:11,fontWeight:700,color:"#bbb",background:"#f5f5f5",borderRadius:8,padding:"6px 10px"}},"취소됨")
+                  : ce("button",{onClick:function(){
+                      if(!window.confirm("신청을 취소할까요?")){return;}
+                      dbCancel(r.id).then(function(){setMyRows(myRows.map(function(x){return x.id===r.id?Object.assign({},x,{status:"cancelled"}):x;}));setMyMsg("취소 완료됐어요.");}).catch(function(e){setMyErr("취소 실패: "+e.message);});
+                    },style:{background:"#fef2f2",border:"1px solid #fecaca",color:"#ef4444",borderRadius:8,padding:"6px 12px",cursor:"pointer",fontSize:12,fontWeight:700,fontFamily:"inherit"}},"취소")
+              )
+            );
+          })
+        )
+      ),
+
+      /* 관리자 */
+      tab==="admin"&&authed&&ce("div",null,
+        ce("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:18,flexWrap:"wrap",gap:8}},
+          ce("div",{style:{fontSize:18,fontWeight:900,color:"#111"}},"신청 현황"),
+          ce("div",{style:{display:"flex",gap:7}},
+            ce("button",{onClick:load,style:{background:"#f8f8f6",border:"1px solid #eee",color:"#111",padding:"7px 12px",borderRadius:8,cursor:"pointer",fontSize:12,fontWeight:700,fontFamily:"inherit"}},"🔄"),
+            ce("button",{onClick:exportCsv,style:{background:"#111",border:"none",color:"#fff",padding:"7px 12px",borderRadius:8,cursor:"pointer",fontSize:12,fontWeight:700,fontFamily:"inherit"}},"📥 CSV"),
+            ce("button",{onClick:function(){setAuthed(false);setTab("home");},style:{background:"#fef2f2",border:"none",color:"#ef4444",padding:"7px 12px",borderRadius:8,cursor:"pointer",fontSize:12,fontWeight:700,fontFamily:"inherit"}},"나가기")
+          )
+        ),
+        aErr&&ce("div",{style:{background:"#fef2f2",border:"1px solid #fecaca",color:"#ef4444",borderRadius:10,padding:12,fontSize:13,marginBottom:12}},aErr),
+        ce("div",{style:{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:8,marginBottom:18}},
+          [{l:"전체",v:activeCnt},{l:"토요일",v:rows.filter(function(r){return r.date_id&&r.date_id.endsWith("6")&&r.status!=="cancelled";}).length},{l:"일요일",v:rows.filter(function(r){return r.date_id&&r.date_id.endsWith("7")&&r.status!=="cancelled";}).length},{l:"취소",v:rows.filter(function(r){return r.status==="cancelled";}).length}].map(function(x){
+            return ce("div",{key:x.l,style:{background:"#fff",borderRadius:12,padding:"12px",textAlign:"center",border:"1px solid #eee"}},
+              ce("div",{style:{fontSize:10,color:"#bbb",fontWeight:700,marginBottom:4}},x.l),
+              ce("div",{style:{fontSize:22,fontWeight:900,color:"#111"}},x.v)
+            );
+          })
+        ),
+        ce("div",{style:{display:"flex",gap:8,marginBottom:12,flexWrap:"wrap"}},
+          ce("input",{className:"fi",placeholder:"닉네임·전화번호",style:{flex:1,minWidth:120},value:srch,onChange:function(e){setSrch(e.target.value);}}),
+          ce("select",{className:"fi",style:{width:"auto",cursor:"pointer"},value:filt,onChange:function(e){setFilt(e.target.value);}},
+            ce("option",{value:"all"},"전체"),
+            WEEKENDS.map(function(w){return ce("option",{key:w.id,value:w.id},w.label);})
+          )
+        ),
+        loading?ce("div",{style:{textAlign:"center",padding:36,color:"#bbb"}},"불러오는 중..."):
+        filtered.length===0?ce("div",{style:{textAlign:"center",padding:36,color:"#ccc"}},"신청자가 없어요"):
+        ce("div",{style:{overflowX:"auto",borderRadius:12,border:"1px solid #eee",background:"#fff",boxShadow:"0 2px 8px rgba(0,0,0,.04)"}},
+          ce("table",{style:{width:"100%",borderCollapse:"collapse",fontSize:12}},
+            ce("thead",null,ce("tr",null,["#","닉네임","전화","날짜","상태","일시","관리"].map(function(h){return ce("th",{key:h,style:{background:"#f8f8f6",color:"#bbb",fontWeight:700,padding:"9px 10px",textAlign:"left",borderBottom:"1px solid #f0f0f0",whiteSpace:"nowrap"}},h);}))),
+            ce("tbody",null,filtered.map(function(r,i){
+              return ce("tr",{key:r.id,style:{borderBottom:"1px solid #fafafa",opacity:r.status==="cancelled"?0.5:1}},
+                ce("td",{style:{padding:"9px 10px",color:"#ccc"}},filtered.length-i),
+                ce("td",{style:{padding:"9px 10px",fontWeight:700,color:r.status==="cancelled"?"#bbb":"#111",textDecoration:r.status==="cancelled"?"line-through":"none"}},r.nickname),
+                ce("td",{style:{padding:"9px 10px"}},ce("a",{href:"tel:"+r.phone,style:{color:GOLD,fontWeight:600,textDecoration:"none"}},r.phone)),
+                ce("td",{style:{padding:"9px 10px",fontWeight:700,color:"#111",fontSize:12,whiteSpace:"nowrap"}},r.date_label||r.date_id),
+                ce("td",{style:{padding:"9px 10px"}},
+                  ce("span",{style:{fontSize:10,fontWeight:700,padding:"2px 7px",borderRadius:5,background:r.status==="cancelled"?"#f5f5f5":"#f0fdf4",color:r.status==="cancelled"?"#bbb":"#16a34a"}},r.status==="cancelled"?"취소":"정상")
+                ),
+                ce("td",{style:{padding:"9px 10px",color:"#bbb",fontSize:10,whiteSpace:"nowrap"}},new Date(r.created_at).toLocaleDateString("ko-KR"),ce("br"),new Date(r.created_at).toLocaleTimeString("ko-KR",{hour:"2-digit",minute:"2-digit"})),
+                ce("td",{style:{padding:"9px 10px",whiteSpace:"nowrap"}},
+                  r.status==="cancelled"
+                    ? ce("button",{onClick:function(){fetch(SUPA_URL+"/rest/v1/"+TABLE+"?id=eq."+r.id,{method:"PATCH",headers:Object.assign({},hdrs(),{"Prefer":"return=representation"}),body:JSON.stringify({status:"active"})}).then(function(){load();}).catch(function(){});},style:{background:"#f0fdf4",border:"1px solid #bbf7d0",color:"#16a34a",borderRadius:6,padding:"4px 8px",cursor:"pointer",fontSize:10,fontWeight:700,fontFamily:"inherit"}},"복구")
+                    : ce("button",{onClick:function(){if(!window.confirm(r.nickname+"님 취소?"))return;dbCancel(r.id).then(function(){load();}).catch(function(){});},style:{background:"#fef2f2",border:"1px solid #fecaca",color:"#ef4444",borderRadius:6,padding:"4px 8px",cursor:"pointer",fontSize:10,fontWeight:700,fontFamily:"inherit"}},"취소")
+                )
+              );
+            }))
+          )
+        )
+      )
+    )
+  );
+}
+
+function Root(){
+  var s=useState(false);var st=s[0];var set=s[1];
+  if(!st) return ce(Cover,{go:function(){set(true);}});
+  return ce(App);
+}
+ReactDOM.createRoot(document.getElementById('root')).render(ce(Root));
+})();
+</script>
+</body>
+</html>
